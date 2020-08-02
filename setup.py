@@ -20,4 +20,5 @@ setuptools.setup(
         'Development Status :: 2 - Pre-Alpha'
     ],
     python_requires='>=3.6',
+    install_requires='pyglet>=1.5.6',
 )
