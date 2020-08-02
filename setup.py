@@ -4,14 +4,14 @@ with open("README.md", "r") as readme:
     long_description = readme.read()
 
 setuptools.setup(
-    name='pygui',
+    name='vui',
     version='0.0.1',
     author='Oleg Eterevsky',
     author_email='oleg@eterevsky.com',
     description='GUI framework written in pure Python',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/eterevsky/pygui',
+    url='https://github.com/eterevsky/vui',
     packages=setuptools.find_packages(),
     classifiers=[
         'Programming Language :: Python :: 3',

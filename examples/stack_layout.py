@@ -1,5 +1,5 @@
 import pyglet
-from pygui import RootLayout, HStackLayout, VStackLayout, View
+from vui import RootLayout, HStackLayout, VStackLayout, View
 
 window = pyglet.window.Window(resizable=True)
 ui = RootLayout(
