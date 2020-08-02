@@ -124,6 +124,27 @@ class StackLayoutTest(unittest.TestCase):
         self.assertEqual(x1, 500)
         self.assertEqual(y1, 300)
 
+    def test_horizontal_overflow(self):
+        child1 = FakeView(min_height=100, flex_height=True, min_width=200,
+                          flex_width=True)
+        child2 = FakeView(min_height=150, flex_height=False, min_width=100,
+                          flex_width=False)
+        stack = HStackLayout(child1, child2)
+        pane = Pane(0, 0, 250, 100)
+        stack.attach(pane)
+
+        x0, y0, x1, y1 = child1.pane.coords
+        self.assertEqual(x0, 0)
+        self.assertEqual(y0, 0)
+        self.assertEqual(x1, 200)
+        self.assertEqual(y1, 100)
+
+        x0, y0, x1, y1 = child2.pane.coords
+        self.assertEqual(x0, 200)
+        self.assertEqual(y0, 0)
+        self.assertEqual(x1, 250)
+        self.assertEqual(y1, 100)
+
 
 if __name__ == '__main__':
     unittest.main()
