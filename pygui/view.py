@@ -46,8 +46,8 @@ class View(object):
 
     def __init__(self, min_width: MaybeObservable[Optional[float]] = None,
                  min_height: MaybeObservable[Optional[float]] = None,
-                 flex_width: MaybeObservable[bool] = False,
-                 flex_height: MaybeObservable[bool] = False,
+                 flex_width: MaybeObservable[bool] = True,
+                 flex_height: MaybeObservable[bool] = True,
                  background_color:
                     MaybeObservable[Optional[Tuple[int, int, int]]] = None,
                  hidden: MaybeObservable[bool] = False):

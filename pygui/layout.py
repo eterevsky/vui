@@ -74,8 +74,8 @@ class Orientation(enum.Enum):
 
 class StackLayout(View):
     def __init__(self, orientation: Orientation, *children: List[View],
-                 **kwargs):
-        super().__init__(**kwargs)
+                 flex_width=True, flex_height=True, **kwargs):
+        super().__init__(flex_width=flex_width, flex_height=flex_height, **kwargs)
 
         self.orientation = orientation
         self._mouseover_pane = None
@@ -212,7 +212,7 @@ class HStackLayout(StackLayout):
     def _calc_content_height(self):
         return max(c.derived_height for c in self.children)
 
-    def _update(self):
+    def _update(self, *args):
         x0, y0, x1, y1 = self.pane.coords
         width = x1 - x0
 
@@ -239,7 +239,7 @@ class VStackLayout(StackLayout):
     def _calc_content_height(self):
         return sum(c.derived_height for c in self.children)
 
-    def _update(self):
+    def _update(self, *args):
         x0, y0, x1, y1 = self.pane.coords
         height = y1 - y0
 

@@ -8,7 +8,7 @@ from .view import View
 
 class ViewTest(unittest.TestCase):
     def test_derived_dim(self):
-        view = View(min_width=100, flex_width=True)
+        view = View(min_width=100, flex_height=False)
         self.assertTrue(view.flex_width)
         self.assertFalse(view.flex_height)
         self.assertEqual(view.derived_width, 100)
