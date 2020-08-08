@@ -1,7 +1,7 @@
 import pyglet
 from vui import RootLayout, HStackLayout, VStackLayout, View, LayersLayout
 
-import color
+import colors
 
 window = pyglet.window.Window(resizable=True)
 ui = RootLayout(
