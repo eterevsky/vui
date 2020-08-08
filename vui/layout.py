@@ -1,5 +1,33 @@
+"""Layout objects: views that contain other views.
+
+Layout objects manage one or more child panes and views attached to them. They
+propagate events and observables to child panes. All of layout classes except
+for `RootLayout` themselves inherit are View objects. They are attached to a
+`Pane`, which they subdivide into child panes.
+
+A layout object a) manages the child pane dimensions, and b) propagates
+events and observables from the parent pane to appropriate child panes.
+In general, a layout object observes values on its own pane, and on child
+views, and sets values on child panes. For instance: a child View may change its
+`min_width` attribute, its parent layout will observe it and might change the
+`width` attribute of the Pane to which this view is attached.
+
+Provided layout objects:
+
+* `RootLayout` — does not inherit from `View`. Adapts a `pyglet.window.Window`
+  object to be used for the views hierarchy.
+* `HStachLayout`, `VStackLayout` — divide their panes into columns/rows based on
+  `derived_width` and `flex_width` / `derived_height` and `flex_height`
+  attributes of the child views.
+* `LayersLayout` — each child pane occupies the whole parent pane. The child
+  `View`'s are drawn one after another. Events are propagated started at the
+  top pane.
+* (planned) `FloatingLayout` — one View draws the background for the whole
+  parent pane and a number of panes floating on top at arbitrary coordinates.
+"""
+
 import enum
-import pyglet    # type: ignore
+import pyglet  # type: ignore
 from typing import List, Optional, Tuple, Union
 
 from .event import EVENT_HANDLED, EVENT_UNHANDLED
@@ -9,6 +37,11 @@ from .view import View
 
 
 class RootLayout(object):
+    """The root of the views hierarchy, wrapping a Pyglet window.
+
+    This class creates a `Pane` covering the whole Pyglet window, converts
+    Pyglet events into Pane events and observables.
+    """
     def __init__(self, window: pyglet.window.Window, child: View = None):
         self.dragging_: Observable[bool] = Observable(False)
         self.child_pane = Pane(0, 0, window.width, window.height)
@@ -73,9 +106,25 @@ class Orientation(enum.Enum):
 
 
 class StackLayout(View):
-    def __init__(self, orientation: Orientation, *children: List[View],
-                 flex_width=True, flex_height=True, **kwargs):
-        super().__init__(flex_width=flex_width, flex_height=flex_height, **kwargs)
+    """Common base class for HStackLayout and VStackLayout.
+
+    Splits the pane into rows or columns. The sizes of the panes depend on
+    `derived_width`/`derived_height` and `flex_width`/`flex_height` attributes
+    of the child views. For children with `flex_* = False` the layout tries
+    to make the panes with the width/height exactly equal to `derived_*` (except
+    for the cases when the pane would overflow the parent pane). The extra space
+    left after accounting for `derived_*` for all children is distributed
+    equally between children with `flex_*` = True.
+    """
+    def __init__(self,
+                 orientation: Orientation,
+                 *children: List[View],
+                 flex_width=True,
+                 flex_height=True,
+                 **kwargs):
+        super().__init__(flex_width=flex_width,
+                         flex_height=flex_height,
+                         **kwargs)
 
         self.orientation = orientation
         self._mouseover_pane = None
@@ -259,17 +308,13 @@ class VStackLayout(StackLayout):
 class LayersLayout(View):
     def __init__(self, *children, **kwargs):
         super().__init__(**kwargs)
-
         self.children = children
+        for child in children:
+            child.derived_width_.observe(self._update_content_width)
+            child.derived_height_.observe(self._update_content_height)
 
-        if not self.min_width_set():
-            self.set_min_width(max(c.min_width for c in self.children))
-        if not self.min_height_set():
-            self.set_min_height(max(c.min_height for c in self.children))
-        if not self.flex_width_set():
-            self.set_flex_width(any(c.flex_width for c in self.children))
-        if not self.flex_height_set():
-            self.set_flex_width(any(c.flex_height for c in self.children))
+        self._update_content_width()
+        self._update_content_height()
 
     def __str__(self):
         content = ''
@@ -283,78 +328,70 @@ class LayersLayout(View):
 
     def attach(self, pane: Pane):
         super().attach(pane)
-        x0, y0, x1, y1 = self.pane.x0, self.pane.y0, self.pane.x1, self.pane.y1
+        pane.coords_.observe(self._update_coords)
+        pane.mouse_pos_.observe(self._observe_mouse_pos)
+
+        x0, y0, x1, y1 = self.pane.coords
         for child in self.children:
-            child_pane = Pane(pane.window, x0, y0, x1, y1)
+            child_pane = Pane(x0, y0, x1, y1)
             child.attach(child_pane)
-            pane.push_handlers(self.on_content_resize)
 
     def detach(self):
-        super().detach()
         for child in self.children:
-            child.pane.remove_handlers(self)
             child.detach()
+        super().detach()
+
+    def _update_content_width(self, *args):
+        self.content_width = max(c.derived_width for c in self.children)
+
+    def _update_content_height(self, *args):
+        self.content_height = max(c.derived_height for c in self.children)
+
+    def _update_coords(self, coords: Tuple[float, float, float, float]):
+        for child in self.children:
+            child.pane.coords = coords
+
+    def _top_pane(self):
+        for child in reversed(self.children):
+            if not child.hidden:
+                return child.pane
 
     def on_draw(self):
         for child in self.children:
             child.pane.dispatch_event('on_draw')
 
-    def on_mouse_enter(self, x, y):
-        for child in reversed(self.children):
-            if (child.pane.dispatch_event('on_mouse_enter', x, y) is
-                    EVENT_HANDLED):
-                break
-
-    def on_mouse_leave(self, x, y):
-        for child in reversed(self.children):
-            if (child.pane.dispatch_event('on_mouse_leave', x, y) is
-                    EVENT_HANDLED):
-                break
-
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        for child in reversed(self.children):
-            if (child.pane.dispatch_event('on_mouse_drag', x, y, dx, dy,
-                                          buttons, modifiers) is
-                    EVENT_HANDLED):
-                break
-
-    def on_mouse_motion(self, x, y, dx, dy):
-        for child in reversed(self.children):
-            if (child.pane.dispatch_event('on_mouse_motion', x, y, dx, dy) is
-                    EVENT_HANDLED):
-                break
+        pane = self._top_pane()
+        if pane is not None:
+            pane.dispatch_event('on_mouse_drag', x, y, dx, dy,
+                                              buttons, modifiers)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        for child in reversed(self.children):
-            if (child.pane.dispatch_event('on_mouse_press', x, y, button,
-                                          modifiers) is EVENT_HANDLED):
-                break
+        pane = self._top_pane()
+        if pane is not None:
+            pane.dispatch_event('on_mouse_press', x, y, button,
+                                              modifiers)
 
     def on_mouse_release(self, x, y, button, modifiers):
-        for child in reversed(self.children):
-            if (child.pane.dispatch_event('on_mouse_release', x, y, button,
-                                          modifiers) is EVENT_HANDLED):
-                break
+        pane = self._top_pane()
+        if pane is not None:
+            pane.dispatch_event('on_mouse_release', x, y, button,
+                                              modifiers)
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
-        for child in reversed(self.children):
-            if (child.pane.dispatch_event('on_mouse_scroll', x, y, scroll_x,
-                                          scroll_y) is EVENT_HANDLED):
-                break
+        pane = self._top_pane()
+        if pane is not None:
+            pane.dispatch_event('on_mouse_scroll', x, y,
+                                              scroll_x, scroll_y)
 
-    def on_dims_change(self, *args):
-        self._resize()
-
-    def on_content_resize(self):
-        self._resize()
-
-    def _resize(self):
-        for child in self.children:
-            child.pane.change_dims(x0=self.pane.x0, x1=self.pane.x1,
-                                   y0=self.pane.y0, y1=self.pane.y1)
+    def _observe_mouse_pos(self, pos: Optional[Tuple[float, float]]):
+        pane = self._top_pane()
+        if pane is not None:
+            pane.mouse_pos = pos
 
 
 class Spacer(View):
     def __init__(self, flex_width=True, flex_height=True, **kwargs):
-        super().__init__(flex_width=flex_width, flex_height=flex_height,
+        super().__init__(flex_width=flex_width,
+                         flex_height=flex_height,
                          **kwargs)

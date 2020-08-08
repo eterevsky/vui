@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from .layout import RootLayout, HStackLayout, VStackLayout
+from .layout import RootLayout, HStackLayout, VStackLayout, LayersLayout
 from .observable import Attribute, Observable, make_observable
 from .pane import Pane
 from .view import View
@@ -69,6 +69,12 @@ class FakeView(View):
         self.on_mouse_press_calls = []
         self.on_mouse_release_calls = []
         self.on_mouse_scroll_calls = []
+
+    def on_draw(self, *args):
+        self.on_draw_calls += 1
+
+    def on_mouse_press(self, *args):
+        self.on_mouse_press_calls.append(tuple(args))
 
 
 class StackLayoutTest(unittest.TestCase):
@@ -144,6 +150,41 @@ class StackLayoutTest(unittest.TestCase):
         self.assertEqual(y0, 0)
         self.assertEqual(x1, 250)
         self.assertEqual(y1, 100)
+
+
+class LayersLayoutTest(unittest.TestCase):
+    def setUp(self):
+        self.child1 = FakeView(min_height=100, flex_height=True, min_width=200,
+                          flex_width=True)
+        self.child2 = FakeView(min_height=150, flex_height=False, min_width=100,
+                          flex_width=False)
+        self.layers = LayersLayout(self.child1, self.child2)
+        self.assertEqual(self.layers.min_width, None)
+        self.assertEqual(self.layers.min_height, None)
+        self.assertEqual(self.layers.derived_width, 200)
+        self.assertEqual(self.layers.derived_height, 150)
+        self.assertFalse(self.layers.hidden)
+        self.pane = Pane(100, 150, 500, 550)
+        self.layers.attach(self.pane)
+
+    def test_coords(self):
+        self.assertEqual(self.child1.pane.coords, (100, 150, 500, 550))
+        self.assertEqual(self.child2.pane.coords, (100, 150, 500, 550))
+
+    def test_mouse_pos(self):
+        self.pane.mouse_pos = (150, 200)
+        self.assertEqual(self.child1.pane.mouse_pos, None)
+        self.assertEqual(self.child2.pane.mouse_pos, (150, 200))
+
+    def test_on_draw(self):
+        self.pane.dispatch_event('on_draw')
+        self.assertEqual(self.child1.on_draw_calls, 1)
+        self.assertEqual(self.child2.on_draw_calls, 1)
+
+    def test_on_mouse_press(self):
+        self.pane.dispatch_event('on_mouse_press', 200, 200, 1, 0)
+        self.assertEqual(self.child1.on_mouse_press_calls, [])
+        self.assertEqual(self.child2.on_mouse_press_calls, [(200, 200, 1, 0)])
 
 
 if __name__ == '__main__':
