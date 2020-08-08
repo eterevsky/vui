@@ -77,37 +77,56 @@ class FakeView(View):
         self.on_mouse_press_calls.append(tuple(args))
 
 
-class StackLayoutTest(unittest.TestCase):
-    def test_h2views(self):
-        child1 = FakeView(min_height=100, flex_height=True, min_width=200,
+class HStackLayoutTest(unittest.TestCase):
+    def setUp(self):
+        self.child1 = FakeView(min_height=100,
+                          flex_height=True,
+                          min_width=200,
                           flex_width=True)
-        child2 = FakeView(min_height=150, flex_height=False, min_width=100,
+        self.child2 = FakeView(min_height=150,
+                          flex_height=False,
+                          min_width=100,
                           flex_width=False)
-        stack = HStackLayout(child1, child2)
-        self.assertEqual(stack.min_width, None)
-        self.assertEqual(stack.min_height, None)
-        self.assertEqual(stack.derived_width, 300)
-        self.assertEqual(stack.derived_height, 150)
-        self.assertFalse(stack.hidden)
-        pane = Pane(100, 150, 500, 550)
-        stack.attach(pane)
+        self.child3 = FakeView(min_height=200,
+                          flex_height=False,
+                          min_width=100,
+                          flex_width=True,
+                          hidden=True)
+        self.stack = HStackLayout(self.child1, self.child2, self.child3)
+        self.pane = Pane(100, 150, 600, 550)
+        self.stack.attach(self.pane)
 
-        x0, y0, x1, y1 = child1.pane.coords
-        self.assertEqual(x0, 100)
-        self.assertEqual(y0, 150)
-        self.assertEqual(x1, 400)
-        self.assertEqual(y1, 550)
+    def test_dims(self):
+        self.assertEqual(self.stack.min_width, None)
+        self.assertEqual(self.stack.min_height, None)
+        self.assertEqual(self.stack.derived_width, 300)
+        self.assertEqual(self.stack.derived_height, 150)
+        self.assertFalse(self.stack.hidden)
 
-        x0, y0, x1, y1 = child2.pane.coords
-        self.assertEqual(x0, 400)
-        self.assertEqual(y0, 150)
-        self.assertEqual(x1, 500)
-        self.assertEqual(y1, 550)
+    def test_child_coords(self):
+        self.assertEqual(self.child1.pane.coords, (100, 150, 500, 550))
+        self.assertEqual(self.child2.pane.coords, (500, 150, 600, 550))
 
+    def test_hide(self):
+        self.child2.hidden = True
+        self.assertEqual(self.child1.pane.coords, (100, 150, 600, 550))
+
+    def test_reveal(self):
+        self.child3.hidden = False
+        self.assertEqual(self.child1.pane.coords, (100, 150, 350, 550))
+        self.assertEqual(self.child2.pane.coords, (350, 150, 450, 550))
+        self.assertEqual(self.child3.pane.coords, (450, 150, 600, 550))
+
+
+class VStackLayoutTest(unittest.TestCase):
     def test_v2views(self):
-        child1 = FakeView(min_height=100, flex_height=True, min_width=200,
+        child1 = FakeView(min_height=100,
+                          flex_height=True,
+                          min_width=200,
                           flex_width=True)
-        child2 = FakeView(min_height=150, flex_height=False, min_width=100,
+        child2 = FakeView(min_height=150,
+                          flex_height=False,
+                          min_width=100,
                           flex_width=False)
         stack = VStackLayout(child1, child2)
         self.assertEqual(stack.min_width, None)
@@ -131,9 +150,13 @@ class StackLayoutTest(unittest.TestCase):
         self.assertEqual(y1, 300)
 
     def test_horizontal_overflow(self):
-        child1 = FakeView(min_height=100, flex_height=True, min_width=200,
+        child1 = FakeView(min_height=100,
+                          flex_height=True,
+                          min_width=200,
                           flex_width=True)
-        child2 = FakeView(min_height=150, flex_height=False, min_width=100,
+        child2 = FakeView(min_height=150,
+                          flex_height=False,
+                          min_width=100,
                           flex_width=False)
         stack = HStackLayout(child1, child2)
         pane = Pane(0, 0, 250, 100)
@@ -154,18 +177,29 @@ class StackLayoutTest(unittest.TestCase):
 
 class LayersLayoutTest(unittest.TestCase):
     def setUp(self):
-        self.child1 = FakeView(min_height=100, flex_height=True, min_width=200,
-                          flex_width=True)
-        self.child2 = FakeView(min_height=150, flex_height=False, min_width=100,
-                          flex_width=False)
+        self.child1 = FakeView(min_height=100,
+                               flex_height=True,
+                               min_width=200,
+                               flex_width=True)
+        self.child2 = FakeView(min_height=150,
+                               flex_height=False,
+                               min_width=100,
+                               flex_width=False)
+        self.child3 = FakeView(min_height=150,
+                               flex_height=False,
+                               min_width=100,
+                               flex_width=False,
+                               hidden=True)
         self.layers = LayersLayout(self.child1, self.child2)
+        self.pane = Pane(100, 150, 500, 550)
+        self.layers.attach(self.pane)
+
+    def test_dims(self):
         self.assertEqual(self.layers.min_width, None)
         self.assertEqual(self.layers.min_height, None)
         self.assertEqual(self.layers.derived_width, 200)
         self.assertEqual(self.layers.derived_height, 150)
         self.assertFalse(self.layers.hidden)
-        self.pane = Pane(100, 150, 500, 550)
-        self.layers.attach(self.pane)
 
     def test_coords(self):
         self.assertEqual(self.child1.pane.coords, (100, 150, 500, 550))
@@ -180,6 +214,7 @@ class LayersLayoutTest(unittest.TestCase):
         self.pane.dispatch_event('on_draw')
         self.assertEqual(self.child1.on_draw_calls, 1)
         self.assertEqual(self.child2.on_draw_calls, 1)
+        self.assertEqual(self.child3.on_draw_calls, 0)
 
     def test_on_mouse_press(self):
         self.pane.dispatch_event('on_mouse_press', 200, 200, 1, 0)

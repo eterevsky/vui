@@ -265,11 +265,14 @@ class HStackLayout(StackLayout):
         x0, y0, x1, y1 = self.pane.coords
         width = x1 - x0
 
-        count_flex = sum(child.flex_width for child in self.children)
+        count_flex = sum(child.flex_width for child in self.children
+                         if not child.hidden)
         extra = (width - self.derived_width) / max(count_flex, 1)
 
         x = x0
         for child in self.children:
+            if child.hidden:
+                continue
             if extra <= 0 or not child.flex_width:
                 next_x = min(x + child.derived_width, x1)
             else:
@@ -292,11 +295,14 @@ class VStackLayout(StackLayout):
         x0, y0, x1, y1 = self.pane.coords
         height = y1 - y0
 
-        count_flex = sum(child.flex_height for child in self.children)
+        count_flex = sum(child.flex_height for child in self.children
+                         if not child.hidden)
         extra = (height - self.derived_height) / max(count_flex, 1)
 
         y = y1
         for child in self.children:
+            if child.hidden:
+                continue
             if extra <= 0 or not child.flex_height:
                 next_y = max(y - child.derived_height, y0)
             else:
@@ -363,26 +369,23 @@ class LayersLayout(View):
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         pane = self._top_pane()
         if pane is not None:
-            pane.dispatch_event('on_mouse_drag', x, y, dx, dy,
-                                              buttons, modifiers)
+            pane.dispatch_event('on_mouse_drag', x, y, dx, dy, buttons,
+                                modifiers)
 
     def on_mouse_press(self, x, y, button, modifiers):
         pane = self._top_pane()
         if pane is not None:
-            pane.dispatch_event('on_mouse_press', x, y, button,
-                                              modifiers)
+            pane.dispatch_event('on_mouse_press', x, y, button, modifiers)
 
     def on_mouse_release(self, x, y, button, modifiers):
         pane = self._top_pane()
         if pane is not None:
-            pane.dispatch_event('on_mouse_release', x, y, button,
-                                              modifiers)
+            pane.dispatch_event('on_mouse_release', x, y, button, modifiers)
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
         pane = self._top_pane()
         if pane is not None:
-            pane.dispatch_event('on_mouse_scroll', x, y,
-                                              scroll_x, scroll_y)
+            pane.dispatch_event('on_mouse_scroll', x, y, scroll_x, scroll_y)
 
     def _observe_mouse_pos(self, pos: Optional[Tuple[float, float]]):
         pane = self._top_pane()
