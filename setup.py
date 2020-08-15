@@ -5,7 +5,7 @@ with open("README.md", "r") as readme:
 
 setuptools.setup(
     name='vui',
-    version='0.0.3',
+    version='0.0.4',
     author='Oleg Eterevsky',
     author_email='oleg@eterevsky.com',
     description='GUI framework written in pure Python',

@@ -80,18 +80,18 @@ class FakeView(View):
 class HStackLayoutTest(unittest.TestCase):
     def setUp(self):
         self.child1 = FakeView(min_height=100,
-                          flex_height=True,
-                          min_width=200,
-                          flex_width=True)
+                               flex_height=True,
+                               min_width=200,
+                               flex_width=True)
         self.child2 = FakeView(min_height=150,
-                          flex_height=False,
-                          min_width=100,
-                          flex_width=False)
+                               flex_height=False,
+                               min_width=100,
+                               flex_width=False)
         self.child3 = FakeView(min_height=200,
-                          flex_height=False,
-                          min_width=100,
-                          flex_width=True,
-                          hidden=True)
+                               flex_height=False,
+                               min_width=100,
+                               flex_width=True,
+                               hidden=True)
         self.stack = HStackLayout(self.child1, self.child2, self.child3)
         self.pane = Pane(100, 150, 600, 550)
         self.stack.attach(self.pane)
@@ -104,18 +104,18 @@ class HStackLayoutTest(unittest.TestCase):
         self.assertFalse(self.stack.hidden)
 
     def test_child_coords(self):
-        self.assertEqual(self.child1.pane.coords, (100, 150, 500, 550))
-        self.assertEqual(self.child2.pane.coords, (500, 150, 600, 550))
+        self.assertEqual(self.child1.pane.alloc_coords, (100, 150, 500, 550))
+        self.assertEqual(self.child2.pane.alloc_coords, (500, 150, 600, 550))
 
     def test_hide(self):
         self.child2.hidden = True
-        self.assertEqual(self.child1.pane.coords, (100, 150, 600, 550))
+        self.assertEqual(self.child1.pane.alloc_coords, (100, 150, 600, 550))
 
     def test_reveal(self):
         self.child3.hidden = False
-        self.assertEqual(self.child1.pane.coords, (100, 150, 350, 550))
-        self.assertEqual(self.child2.pane.coords, (350, 150, 450, 550))
-        self.assertEqual(self.child3.pane.coords, (450, 150, 600, 550))
+        self.assertEqual(self.child1.pane.alloc_coords, (100, 150, 350, 550))
+        self.assertEqual(self.child2.pane.alloc_coords, (350, 150, 450, 550))
+        self.assertEqual(self.child3.pane.alloc_coords, (450, 150, 600, 550))
 
 
 class VStackLayoutTest(unittest.TestCase):
@@ -137,17 +137,8 @@ class VStackLayoutTest(unittest.TestCase):
         pane = Pane(100, 150, 500, 550)
         stack.attach(pane)
 
-        x0, y0, x1, y1 = child1.pane.coords
-        self.assertEqual(x0, 100)
-        self.assertEqual(y0, 300)
-        self.assertEqual(x1, 500)
-        self.assertEqual(y1, 550)
-
-        x0, y0, x1, y1 = child2.pane.coords
-        self.assertEqual(x0, 100)
-        self.assertEqual(y0, 150)
-        self.assertEqual(x1, 500)
-        self.assertEqual(y1, 300)
+        self.assertEqual(child1.pane.alloc_coords, (100, 300, 500, 550))
+        self.assertEqual(child2.pane.alloc_coords, (100, 150, 500, 300))
 
     def test_horizontal_overflow(self):
         child1 = FakeView(min_height=100,
@@ -162,17 +153,8 @@ class VStackLayoutTest(unittest.TestCase):
         pane = Pane(0, 0, 250, 100)
         stack.attach(pane)
 
-        x0, y0, x1, y1 = child1.pane.coords
-        self.assertEqual(x0, 0)
-        self.assertEqual(y0, 0)
-        self.assertEqual(x1, 200)
-        self.assertEqual(y1, 100)
-
-        x0, y0, x1, y1 = child2.pane.coords
-        self.assertEqual(x0, 200)
-        self.assertEqual(y0, 0)
-        self.assertEqual(x1, 250)
-        self.assertEqual(y1, 100)
+        self.assertEqual(child1.pane.alloc_coords, (0, 0, 200, 100))
+        self.assertEqual(child2.pane.alloc_coords, (200, 0, 250, 100))
 
 
 class LayersLayoutTest(unittest.TestCase):

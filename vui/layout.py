@@ -60,7 +60,7 @@ class RootLayout(object):
         return 'RootLayout({})'.format(content)
 
     @property
-    def child(self) -> View:
+    def child(self) -> Optional[View]:
         return self._child
 
     @child.setter
@@ -97,7 +97,7 @@ class RootLayout(object):
         self.child_pane.dispatch_event('on_mouse_scroll', *args)
 
     def on_resize(self, width, height):
-        self.child_pane.coords = (0, 0, width, height)
+        self.child_pane.alloc_coords = (0, 0, width, height)
 
 
 class Orientation(enum.Enum):
@@ -118,7 +118,7 @@ class StackLayout(View):
     """
     def __init__(self,
                  orientation: Orientation,
-                 *children: List[View],
+                 *children: View,
                  flex_width=True,
                  flex_height=True,
                  **kwargs):
@@ -127,11 +127,11 @@ class StackLayout(View):
                          **kwargs)
 
         self.orientation = orientation
-        self._mouseover_pane = None
+        self._mouseover_pane: Optional[Pane] = None
         self._dragging_pane = None
         self._dragging_button = 0
 
-        self.children = children
+        self.children: List[View] = list(children)
         for child in children:
             child.derived_width_.observe(self._update_content_width)
             child.derived_height_.observe(self._update_content_height)
@@ -159,7 +159,7 @@ class StackLayout(View):
         # executed twice. But this is conceptually simpler, so we'll do it for
         # v0. Will probably optimize later.
 
-        x0, y0, x1, y1 = self.pane.coords
+        x0, y0, x1, y1 = pane.coords
         if self.orientation == Orientation.HORIZONTAL:
             y0 = y1
         else:
@@ -174,14 +174,16 @@ class StackLayout(View):
             child.detach()
         super().detach()
 
-    def _find_child_pane(self, x, y) -> Pane:
+    def _find_child_pane(self, x, y) -> Optional[Pane]:
         """Returns the child contining (x, y) or None."""
         if (self._mouseover_pane is not None
                 and self._mouseover_pane.contains(x, y)):
             return self._mouseover_pane
         for child in self.children:
-            if child.pane.contains(x, y):
-                return child.pane
+            child_pane = child.pane
+            assert child_pane is not None
+            if child_pane.contains(x, y):
+                return child_pane
         return None
 
     def on_draw(self):
@@ -277,7 +279,7 @@ class HStackLayout(StackLayout):
                 next_x = min(x + child.derived_width, x1)
             else:
                 next_x = x + child.derived_width + extra
-            child.pane.coords = (x, y0, next_x, y1)
+            child.pane.alloc_coords = (x, y0, next_x, y1)
             x = next_x
 
 
@@ -307,7 +309,7 @@ class VStackLayout(StackLayout):
                 next_y = max(y - child.derived_height, y0)
             else:
                 next_y = y - child.derived_height - extra
-            child.pane.coords = (x0, next_y, x1, y)
+            child.pane.alloc_coords = (x0, next_y, x1, y)
             y = next_y
 
 
@@ -337,7 +339,7 @@ class LayersLayout(View):
         pane.coords_.observe(self._update_coords)
         pane.mouse_pos_.observe(self._observe_mouse_pos)
 
-        x0, y0, x1, y1 = self.pane.coords
+        x0, y0, x1, y1 = pane.coords
         for child in self.children:
             child_pane = Pane(x0, y0, x1, y1)
             child.attach(child_pane)
@@ -355,7 +357,7 @@ class LayersLayout(View):
 
     def _update_coords(self, coords: Tuple[float, float, float, float]):
         for child in self.children:
-            child.pane.coords = coords
+            child.pane.alloc_coords = coords
 
     def _top_pane(self):
         for child in reversed(self.children):

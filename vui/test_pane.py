@@ -1,4 +1,4 @@
-import pyglet.shapes
+import pyglet.shapes  # type: ignore
 import unittest
 from unittest.mock import Mock, patch
 
