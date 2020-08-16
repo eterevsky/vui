@@ -115,7 +115,7 @@ class StackLayout(View):
     for the cases when the pane would overflow the parent pane). The extra space
     left after accounting for `derived_*` for all children is distributed
     equally between children with `flex_*` = True.
-    """
+    # """
     def __init__(self,
                  orientation: Orientation,
                  *children: View,
@@ -131,13 +131,9 @@ class StackLayout(View):
         self._dragging_pane = None
         self._dragging_button = 0
 
-        self.children: List[View] = list(children)
+        self.children = []
         for child in children:
-            child.derived_width_.observe(self._update_content_width)
-            child.derived_height_.observe(self._update_content_height)
-
-        self.content_width = self._calc_content_width()
-        self.content_height = self._calc_content_height()
+            self.add_child(child)
 
     def __str__(self):
         content = ''
@@ -148,6 +144,14 @@ class StackLayout(View):
         content += '\n'
 
         return '{}[{}]({})'.format(self.__class__.__name__, self.pane, content)
+
+    def add_child(self, child: View):
+        self.children.append(child)
+
+        child.derived_width_.observe(self._update_content_width)
+        child.derived_height_.observe(self._update_content_height)
+        self.content_width = self._calc_content_width()
+        self.content_height = self._calc_content_height()
 
     def attach(self, pane: Pane):
         super().attach(pane)
@@ -261,7 +265,7 @@ class HStackLayout(StackLayout):
         return sum(c.derived_width for c in self.children)
 
     def _calc_content_height(self):
-        return max(c.derived_height for c in self.children)
+        return max(c.derived_height for c in self.children) if self.children else 0
 
     def _update(self, *args):
         x0, y0, x1, y1 = self.pane.coords
@@ -288,7 +292,7 @@ class VStackLayout(StackLayout):
         super().__init__(Orientation.VERTICAL, *args, **kwargs)
 
     def _calc_content_width(self):
-        return max(c.derived_width for c in self.children)
+        return max(c.derived_width for c in self.children) if self.children else 0
 
     def _calc_content_height(self):
         return sum(c.derived_height for c in self.children)
