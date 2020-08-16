@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 from .observable import Attribute, Observable, make_observable
 from .pane import Pane
-from .view import View
+from .view import View, HAlign, VAlign
 
 
 class ViewTest(unittest.TestCase):
@@ -94,6 +94,83 @@ class ViewTest(unittest.TestCase):
 
         pane.dispatch_event('on_draw')
         self.assertEqual(view.calls, 1)
+
+    def test_hfill_vtop(self):
+        view = View(min_width=100,
+                    min_height=200,
+                    halign=HAlign.FILL,
+                    valign=VAlign.TOP)
+        pane = Pane(0, 0, 500, 600)
+        self.assertEqual(pane.coords, (0, 0, 500, 600))
+        view.attach(pane)
+        self.assertEqual(pane.coords, (0, 400, 500, 600))
+
+        pane.alloc_coords = (100, 100, 600, 500)
+        self.assertEqual(pane.coords, (100, 300, 600, 500))
+
+        view.min_height = 300
+        self.assertEqual(pane.coords, (100, 200, 600, 500))
+
+    def test_hleft_vcenter(self):
+        view = View(min_width=100,
+                    min_height=200,
+                    halign=HAlign.LEFT,
+                    valign=VAlign.CENTER)
+        pane = Pane(0, 0, 500, 600)
+        self.assertEqual(pane.coords, (0, 0, 500, 600))
+        view.attach(pane)
+        self.assertEqual(pane.coords, (0, 200, 100, 400))
+
+        pane.alloc_coords = (100, 100, 600, 500)
+        self.assertEqual(pane.coords, (100, 200, 200, 400))
+
+        view.min_height = 300
+        self.assertEqual(pane.coords, (100, 150, 200, 450))
+
+    def test_hcenter_vfill(self):
+        view = View(min_width=100,
+                    min_height=200,
+                    halign=HAlign.CENTER,
+                    valign=VAlign.FILL)
+        pane = Pane(0, 0, 500, 600)
+        self.assertEqual(pane.coords, (0, 0, 500, 600))
+        view.attach(pane)
+        self.assertEqual(pane.coords, (200, 0, 300, 600))
+
+        pane.alloc_coords = (100, 100, 600, 500)
+        self.assertEqual(pane.coords, (300, 100, 400, 500))
+
+        view.min_width = 300
+        self.assertEqual(pane.coords, (200, 100, 500, 500))
+
+    def test_hright_vbottom(self):
+        view = View(min_width=100,
+                    min_height=200,
+                    halign=HAlign.RIGHT,
+                    valign=VAlign.BOTTOM)
+        pane = Pane(0, 0, 500, 600)
+        self.assertEqual(pane.coords, (0, 0, 500, 600))
+        view.attach(pane)
+        self.assertEqual(pane.coords, (400, 0, 500, 200))
+
+        pane.alloc_coords = (100, 100, 600, 500)
+        self.assertEqual(pane.coords, (500, 100, 600, 300))
+
+        view.min_width = 300
+        self.assertEqual(pane.coords, (300, 100, 600, 300))
+
+    def test_change_align(self):
+        view = View(min_width=100,
+                    min_height=200,
+                    halign=HAlign.RIGHT,
+                    valign=VAlign.BOTTOM)
+        pane = Pane(0, 0, 500, 600)
+        view.attach(pane)
+        self.assertEqual(pane.coords, (400, 0, 500, 200))
+
+        view.halign = HAlign.CENTER
+        view.valign = VAlign.FILL
+        self.assertEqual(pane.coords, (200, 0, 300, 600))
 
 
 if __name__ == '__main__':

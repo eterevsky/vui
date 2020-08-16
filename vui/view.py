@@ -35,7 +35,8 @@ class VAlign(Enum):
 
 
 def _calc_coords(lo: float, hi: float, dim: float, align: Union[HAlign, VAlign]):
-    extra = lo - hi - dim
+    extra = hi - lo - dim
+    # print('_calc_coords lo={} hi={} dim={} align={} extra={}'.format(lo, hi, dim, align, extra))
     if align.value == 4 or extra <= 0:
         # If FILL or the space is too small, we just take all the available
         # space.
@@ -153,10 +154,10 @@ class View(object):
         self.detach()
         self.pane = pane
         if pane is not None:
-            self.pane.push_handlers(self)
-            self.pane.push_handlers(on_draw=self.on_draw_check_hidden)
-            self.pane.swap_background(self.background_color_)
-            self.pane.alloc_coords_.observe(self._update_pane)
+            pane.push_handlers(self)
+            pane.push_handlers(on_draw=self.on_draw_check_hidden)
+            pane.swap_background(self.background_color_)
+            pane.alloc_coords_.observe(self._update_pane)
             self._update_pane()
 
     def detach(self):

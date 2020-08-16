@@ -63,7 +63,9 @@ class Pane(event.EventDispatcher):
 
     def __str__(self):
         x0, y0, x1, y1 = self.coords
-        return 'Pane({}, {}, {}, {})'.format(x0, y0, x1, y1)
+        ax0, ay0, ax1, ay1 = self.alloc_coords
+        return 'Pane({}, {}, {}, {} | {}, {}, {}, {})'.format(
+            ax0, ay0, ax1, ay1, x0, y0, x1, y1)
 
     def remove_observer(self, observer):
         self.alloc_coords_.remove_observer(observer)
@@ -114,4 +116,19 @@ Pane.register_event_type('on_mouse_press')
 Pane.register_event_type('on_mouse_release')
 Pane.register_event_type('on_mouse_scroll')
 
-DUMMY_PANE = Pane(0, 0, 0, 0, Observable(None))
+
+class DummyPane(Pane):
+    def __init__(self):
+        super().__init__(0, 0, 0, 0)
+
+    def __str__(self):
+        return 'DummyPane'
+
+    def on_draw(self):
+        pass
+
+    def contains(self, x, y):
+        return False
+
+
+DUMMY_PANE = DummyPane()

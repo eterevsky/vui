@@ -32,7 +32,7 @@ from typing import List, Optional, Tuple, Union
 
 from .event import EVENT_HANDLED, EVENT_UNHANDLED
 from .observable import Attribute, Observable
-from .pane import Pane
+from .pane import Pane, DUMMY_PANE
 from .view import View
 
 
@@ -321,6 +321,8 @@ class LayersLayout(View):
             child.derived_width_.observe(self._update_content_width)
             child.derived_height_.observe(self._update_content_height)
 
+        self._mouseover_pane = DUMMY_PANE
+
         self._update_content_width()
         self._update_content_height()
 
@@ -359,40 +361,50 @@ class LayersLayout(View):
         for child in self.children:
             child.pane.alloc_coords = coords
 
-    def _top_pane(self):
+    def _find_child_pane(self, x, y) -> Optional[Pane]:
+        """Returns the child contining (x, y) or None."""
+        if self._mouseover_pane.contains(x, y):
+            return self._mouseover_pane
         for child in reversed(self.children):
-            if not child.hidden:
-                return child.pane
+            child_pane = child.pane
+            assert child_pane is not None
+            if child_pane.contains(x, y):
+                return child_pane
+        return DUMMY_PANE
 
     def on_draw(self):
         for child in self.children:
             child.pane.dispatch_event('on_draw')
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        pane = self._top_pane()
-        if pane is not None:
-            pane.dispatch_event('on_mouse_drag', x, y, dx, dy, buttons,
-                                modifiers)
+        self._find_child_pane(x, y).dispatch_event('on_mouse_drag', x, y, dx, dy,
+                                                buttons, modifiers)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        pane = self._top_pane()
-        if pane is not None:
-            pane.dispatch_event('on_mouse_press', x, y, button, modifiers)
+        self._find_child_pane(x, y).dispatch_event('on_mouse_press', x, y, button,
+                                                modifiers)
 
     def on_mouse_release(self, x, y, button, modifiers):
-        pane = self._top_pane()
-        if pane is not None:
-            pane.dispatch_event('on_mouse_release', x, y, button, modifiers)
+        self._find_child_pane(x, y).dispatch_event('on_mouse_release', x, y,
+                                                button, modifiers)
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
-        pane = self._top_pane()
-        if pane is not None:
-            pane.dispatch_event('on_mouse_scroll', x, y, scroll_x, scroll_y)
+        self._find_child_pane(x, y).dispatch_event('on_mouse_scroll', x, y,
+                                                scroll_x, scroll_y)
 
     def _observe_mouse_pos(self, pos: Optional[Tuple[float, float]]):
-        pane = self._top_pane()
-        if pane is not None:
-            pane.mouse_pos = pos
+        if pos is None:
+            if self._mouseover_pane is not None:
+                self._mouseover_pane.mouse_pos = None
+            return
+        x, y = pos
+        if self._mouseover_pane is not None:
+            if self._mouseover_pane.contains(x, y):
+                self._mouseover_pane.mouse_pos = pos
+                return
+            self._mouseover_pane.mouse_pos = None
+        self._mouseover_pane = self._find_child_pane(x, y)
+        self._mouseover_pane.mouse_pos = pos
 
 
 class Spacer(View):

@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 from .layout import RootLayout, HStackLayout, VStackLayout, LayersLayout
 from .observable import Attribute, Observable, make_observable
 from .pane import Pane
-from .view import View
+from .view import View, HAlign, VAlign
 
 
 class MyView(View):
@@ -65,16 +65,13 @@ class FakeView(View):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.on_draw_calls = 0
-        self.on_mouse_drag_calls = []
-        self.on_mouse_press_calls = []
-        self.on_mouse_release_calls = []
-        self.on_mouse_scroll_calls = []
+        self.on_mouse_press_calls = 0
 
     def on_draw(self, *args):
         self.on_draw_calls += 1
 
     def on_mouse_press(self, *args):
-        self.on_mouse_press_calls.append(tuple(args))
+        self.on_mouse_press_calls += 1
 
 
 class HStackLayoutTest(unittest.TestCase):
@@ -82,15 +79,20 @@ class HStackLayoutTest(unittest.TestCase):
         self.child1 = FakeView(min_height=100,
                                flex_height=True,
                                min_width=200,
-                               flex_width=True)
+                               flex_width=True,
+                               halign=HAlign.CENTER,
+                               valign=VAlign.CENTER)
         self.child2 = FakeView(min_height=150,
                                flex_height=False,
                                min_width=100,
-                               flex_width=False)
+                               flex_width=False,
+                               valign=VAlign.TOP)
         self.child3 = FakeView(min_height=200,
                                flex_height=False,
                                min_width=100,
                                flex_width=True,
+                               halign=HAlign.FILL,
+                               valign=VAlign.FILL,
                                hidden=True)
         self.stack = HStackLayout(self.child1, self.child2, self.child3)
         self.pane = Pane(100, 150, 600, 550)
@@ -103,7 +105,7 @@ class HStackLayoutTest(unittest.TestCase):
         self.assertEqual(self.stack.derived_height, 150)
         self.assertFalse(self.stack.hidden)
 
-    def test_child_coords(self):
+    def test_child_alloc_coords(self):
         self.assertEqual(self.child1.pane.alloc_coords, (100, 150, 500, 550))
         self.assertEqual(self.child2.pane.alloc_coords, (500, 150, 600, 550))
 
@@ -116,6 +118,42 @@ class HStackLayoutTest(unittest.TestCase):
         self.assertEqual(self.child1.pane.alloc_coords, (100, 150, 350, 550))
         self.assertEqual(self.child2.pane.alloc_coords, (350, 150, 450, 550))
         self.assertEqual(self.child3.pane.alloc_coords, (450, 150, 600, 550))
+
+    def test_child_coords(self):
+        self.child3.hidden = False
+        self.assertEqual(self.child1.pane.coords, (125, 300, 325, 400))
+        self.assertEqual(self.child2.pane.coords, (350, 400, 450, 550))
+        self.assertEqual(self.child3.pane.coords, (450, 150, 600, 550))
+
+    def test_draw(self):
+        self.pane.dispatch_event('on_draw')
+        self.assertEqual(self.child1.on_draw_calls, 1)
+        self.assertEqual(self.child2.on_draw_calls, 1)
+        self.assertEqual(self.child3.on_draw_calls, 0)
+
+    def test_mouse_press(self):
+        self.child3.hidden = False
+
+        self.pane.dispatch_event('on_mouse_press', 200, 350, None, None)
+        self.assertEqual(self.child1.on_mouse_press_calls, 1)
+        self.assertEqual(self.child2.on_mouse_press_calls, 0)
+        self.assertEqual(self.child3.on_mouse_press_calls, 0)
+
+        self.pane.dispatch_event('on_mouse_press', 500, 350, None, None)
+        self.assertEqual(self.child1.on_mouse_press_calls, 1)
+        self.assertEqual(self.child2.on_mouse_press_calls, 0)
+        self.assertEqual(self.child3.on_mouse_press_calls, 1)
+
+        # Outside of the active area of a child pane.
+        self.pane.dispatch_event('on_mouse_press', 110, 350, None, None)
+        self.assertEqual(self.child1.on_mouse_press_calls, 1)
+        self.assertEqual(self.child2.on_mouse_press_calls, 0)
+        self.assertEqual(self.child3.on_mouse_press_calls, 1)
+
+        self.pane.dispatch_event('on_mouse_press', 200, 200, None, None)
+        self.assertEqual(self.child1.on_mouse_press_calls, 1)
+        self.assertEqual(self.child2.on_mouse_press_calls, 0)
+        self.assertEqual(self.child3.on_mouse_press_calls, 1)
 
 
 class VStackLayoutTest(unittest.TestCase):
@@ -162,11 +200,15 @@ class LayersLayoutTest(unittest.TestCase):
         self.child1 = FakeView(min_height=100,
                                flex_height=True,
                                min_width=200,
-                               flex_width=True)
+                               flex_width=True,
+                               valign=VAlign.FILL,
+                               halign=HAlign.FILL)
         self.child2 = FakeView(min_height=150,
                                flex_height=False,
                                min_width=100,
-                               flex_width=False)
+                               flex_width=False,
+                               valign=VAlign.CENTER,
+                               halign=HAlign.CENTER)
         self.child3 = FakeView(min_height=150,
                                flex_height=False,
                                min_width=100,
@@ -185,12 +227,16 @@ class LayersLayoutTest(unittest.TestCase):
 
     def test_coords(self):
         self.assertEqual(self.child1.pane.coords, (100, 150, 500, 550))
-        self.assertEqual(self.child2.pane.coords, (100, 150, 500, 550))
+        self.assertEqual(self.child2.pane.coords, (250, 275, 350, 425))
 
     def test_mouse_pos(self):
-        self.pane.mouse_pos = (150, 200)
+        self.pane.mouse_pos = (300, 300)
         self.assertEqual(self.child1.pane.mouse_pos, None)
-        self.assertEqual(self.child2.pane.mouse_pos, (150, 200))
+        self.assertEqual(self.child2.pane.mouse_pos, (300, 300))
+
+        self.pane.mouse_pos = (200, 200)
+        self.assertEqual(self.child1.pane.mouse_pos, (200, 200))
+        self.assertEqual(self.child2.pane.mouse_pos, None)
 
     def test_on_draw(self):
         self.pane.dispatch_event('on_draw')
@@ -199,9 +245,16 @@ class LayersLayoutTest(unittest.TestCase):
         self.assertEqual(self.child3.on_draw_calls, 0)
 
     def test_on_mouse_press(self):
+        self.pane.dispatch_event('on_mouse_press', 300, 300, 1, 0)
+        self.assertEqual(self.child1.on_mouse_press_calls, 0)
+        self.assertEqual(self.child2.on_mouse_press_calls, 1)
+        self.assertEqual(self.child3.on_mouse_press_calls, 0)
+
+        # Not covered by child2
         self.pane.dispatch_event('on_mouse_press', 200, 200, 1, 0)
-        self.assertEqual(self.child1.on_mouse_press_calls, [])
-        self.assertEqual(self.child2.on_mouse_press_calls, [(200, 200, 1, 0)])
+        self.assertEqual(self.child1.on_mouse_press_calls, 1)
+        self.assertEqual(self.child2.on_mouse_press_calls, 1)
+        self.assertEqual(self.child3.on_mouse_press_calls, 0)
 
 
 if __name__ == '__main__':
