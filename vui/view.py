@@ -58,18 +58,13 @@ class View(object):
     manages the attributes that determine the size of the pane that will be
     created by the parent layout view.
 
-    Attributes:
+    Input attributes (the class listens to these arguments, but doesn't modify
+    them):
       min_width, min_height: set by the external code that creates the View,
         those are the minimal dimensions of the view. These attributes take
         precendence over content_width and content_height. By default are
         set to None. When these attributes are None, they are ignored and
         content_width and content_height is used instead.
-      content_width, content_height: have the same effect as min_*, but with
-        lower priority (if min_width is set, content_width is generally
-        ignored). Unlike min_*, these attributes are set *by the class itself*.
-      derived_width, derived_height: managed by the class, equal
-        to min_width/min_height if it's defined, otherwise to
-        content_width/content_height.
       flex_width, flex_height: boolean attributes, set by the user code. These
         attributes determine how the parent layout will allocate space to it.
         When False, the layout will attempt to allocate exactly `derived_*`
@@ -83,7 +78,16 @@ class View(object):
         the view will set `coords` in the attached pane.
       hidden: boolean attribute, set by the external code. If True, will not
         render anything in on_draw.
-      background_color: same as background_color in underlying Pane.
+      background_color: same as `background_color` in underlying Pane.
+      alloc_background_color: same as `alloc_background_color` in underlying Pane.
+
+    Output attributes (the class modifies these arguments):
+      content_width, content_height: have the same effect as min_*, but with
+        lower priority (if min_width is set, content_width is generally
+        ignored). Unlike min_*, these attributes are set *by the class itself*.
+      derived_width, derived_height: managed by the class, equal
+        to min_width/min_height if it's defined, otherwise to
+        content_width/content_height.
     """
     min_width: Attribute[Optional[float]] = Attribute('min_width_')
     min_height: Attribute[Optional[float]] = Attribute('min_height_')
@@ -98,6 +102,8 @@ class View(object):
     hidden: Attribute[bool] = Attribute('hidden_')
     background_color: Attribute[Optional[Tuple[int, int, int]]] = Attribute(
         'background_color_')
+    alloc_background_color: Attribute[Optional[Tuple[int, int, int]]] = Attribute(
+        'alloc_background_color_')
 
     def __init__(self, min_width: MaybeObservable[Optional[float]] = None,
                  min_height: MaybeObservable[Optional[float]] = None,
@@ -106,6 +112,8 @@ class View(object):
                  halign: MaybeObservable[HAlign] = HAlign.FILL,
                  valign: MaybeObservable[VAlign] = VAlign.FILL,
                  background_color:
+                    MaybeObservable[Optional[Tuple[int, int, int]]] = None,
+                 alloc_background_color:
                     MaybeObservable[Optional[Tuple[int, int, int]]] = None,
                  hidden: MaybeObservable[bool] = False):
         self.pane: Optional[Pane] = None
@@ -135,6 +143,8 @@ class View(object):
 
         self.background_color_: Observable[Optional[Tuple[
             int, int, int]]] = make_observable(background_color)
+        self.alloc_background_color_: Observable[Optional[Tuple[
+            int, int, int]]] = make_observable(alloc_background_color)
         self.hidden_: Observable[bool] = make_observable(hidden)
         self.hidden_.observe(self._calc_width)
         self.hidden_.observe(self._calc_height)
@@ -157,6 +167,7 @@ class View(object):
             pane.push_handlers(self)
             pane.push_handlers(on_draw=self.on_draw_check_hidden)
             pane.swap_background(self.background_color_)
+            pane.swap_alloc_background(self.alloc_background_color_)
             pane.alloc_coords_.observe(self._update_pane)
             self._update_pane()
 

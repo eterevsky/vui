@@ -2,8 +2,7 @@ import pyglet.shapes  # type: ignore
 from typing import Optional, Tuple, Union
 
 from . import event
-from .observable import Attribute, Observable, make_observable
-
+from .observable import Attribute, MaybeObservable, Observable, make_observable
 
 # Type used for specifying a rectangular area as (x0, y0, x1, y1) where (x0, y0)
 # is the bottom left corner and (x1, y1) is top right.
@@ -43,21 +42,33 @@ class Pane(event.EventDispatcher):
     """
     alloc_coords: Attribute[Coords] = Attribute('alloc_coords_')
     coords: Attribute[Coords] = Attribute('coords_')
+    alloc_background_color: Attribute[Tuple[int, int, int]] = Attribute(
+        'alloc_background_color_')
     background_color: Attribute[Tuple[int, int,
                                       int]] = Attribute('background_color_')
     mouse_pos: Attribute[Optional[Tuple[float,
                                         float]]] = Attribute('mouse_pos_')
 
-    def __init__(self, x0: float, y0: float, x1: float, y1: float,
-                 background: Union[Observable, Tuple[int, int, int]] = None):
+    def __init__(self,
+                 x0: float,
+                 y0: float,
+                 x1: float,
+                 y1: float,
+                 background_color: MaybeObservable[Tuple[int, int,
+                                                           int]] = None,
+                 alloc_background_color: MaybeObservable[Tuple[int, int,
+                                                           int]] = None):
         self.alloc_coords_: Observable[Coords] = Observable((x0, y0, x1, y1))
         self.coords_: Observable[Coords] = Observable((x0, y0, x1, y1))
         self.coords_.observe(self._prepare_background_draw)
         self.mouse_pos_: Observable[Optional[Tuple[float,
                                                    float]]] = Observable(None)
 
+        self.alloc_background_color_: Observable[Optional[Tuple[
+            int, int, int]]] = make_observable(alloc_background_color)
         self.background_color_: Observable[Optional[Tuple[
-            int, int, int]]] = make_observable(background)
+            int, int, int]]] = make_observable(background_color)
+        self.alloc_background_color_.observe(self._prepare_background_draw)
         self.background_color_.observe(self._prepare_background_draw)
         self._prepare_background_draw()
 
@@ -82,18 +93,33 @@ class Pane(event.EventDispatcher):
         return self.coords[3] - self.coords[1]
 
     def _prepare_background_draw(self, *args):
-        if self.background_color is None:
+        if self.background_color is not None:
+            x0, y0, x1, y1 = self.coords
+            self._background_shape = pyglet.shapes.Rectangle(
+                x=x0,
+                y=y0,
+                width=(x1 - x0),
+                height=(y1 - y0),
+                color=self.background_color)
+        else:
             self._background_shape = None
-            return
-        x0, y0, x1, y1 = self.coords
-        self._background_shape = pyglet.shapes.Rectangle(
-            x=x0, y=y0, width=(x1 - x0), height=(y1 - y0),
-            color=self.background_color)
+
+        if self.alloc_background_color is not None:
+            x0, y0, x1, y1 = self.alloc_coords
+            self._alloc_background_shape = pyglet.shapes.Rectangle(
+                x=x0,
+                y=y0,
+                width=(x1 - x0),
+                height=(y1 - y0),
+                color=self.alloc_background_color)
+        else:
+            self._alloc_background_shape = None
 
     def _draw_background(self):
-        if self._background_shape is None:
-            return
-        self._background_shape.draw()
+        if self._alloc_background_shape is not None:
+            self._alloc_background_shape.draw()
+        if self._background_shape is not None:
+            self._background_shape.draw()
 
     @event.priority(1)
     def on_draw(self):
@@ -107,6 +133,12 @@ class Pane(event.EventDispatcher):
         """Replace background_color with a new external observable."""
         self.background_color_.remove_observer(self)
         self.background_color_ = background_color_
+        self._prepare_background_draw()
+
+    def swap_alloc_background(self, alloc_background_color_):
+        """Replace background_color with a new external observable."""
+        self.alloc_background_color_.remove_observer(self)
+        self.alloc_background_color_ = alloc_background_color_
         self._prepare_background_draw()
 
 

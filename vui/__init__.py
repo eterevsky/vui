@@ -1,3 +1,4 @@
+from .image import Image
 from .layout import (RootLayout, StackLayout, HStackLayout, VStackLayout,
                      LayersLayout, Spacer)
 from .observable import Attribute, MaybeObservable, Observable, make_observable
