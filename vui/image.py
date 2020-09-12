@@ -10,13 +10,16 @@ class Image(View):
     data: Attribute[Optional[AbstractImage]] = Attribute('data_')
 
     def __init__(self,
-                 data: Union[MaybeObservable[Optional[AbstractImage]], str] = None,
+                 data_or_path: Union[MaybeObservable[Optional[AbstractImage]],
+                                     str] = None,
                  halign: MaybeObservable[HAlign] = HAlign.CENTER,
                  valign: MaybeObservable[VAlign] = VAlign.CENTER,
                  **kwargs):
         super().__init__(halign=halign, valign=valign, **kwargs)
-        if type(data) is str:
-            data = pyglet.image.load(data)
+        if type(data_or_path) is str:
+            data = pyglet.image.load(data_or_path)
+        else:
+            data = data_or_path
         self.data_: Observable[Optional[AbstractImage]] = make_observable(data)
         self.data_.observe(self._update_data)
         self._update_data(self.data)
@@ -28,4 +31,4 @@ class Image(View):
 
     def on_draw(self):
         x0, y0, x1, y1 = self.pane.coords
-        self._texture.blit(x0, y0, width=(x1-x0), height=(y1-y0))
+        self._texture.blit(x0, y0, width=(x1 - x0), height=(y1 - y0))
