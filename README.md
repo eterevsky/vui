@@ -21,3 +21,5 @@ In addition to `Observable` vui makes use of `events` module forked from Pyglet
 events. As a rule, whenever an event can be thought about as changes of some
 value, it should be represented as `Observable`. But some events like `on_draw`
 don't fit this model and are represented as events.
+
+TODO: https://eugenkiss.github.io/7guis/tasks/
